@@ -20,209 +20,108 @@ interface NewsItem {
   url: string;
 }
 
+interface FinancialHealth {
+  overall_assessment: string;
+  overall_reasoning: string;
+  growth: {
+    assessment: string;
+    evidence: string;
+    significance: string;
+  };
+  profitability: {
+    assessment: string;
+    evidence: string;
+    significance: string;
+  };
+  efficiency: {
+    assessment: string;
+    evidence: string;
+    significance: string;
+  };
+  valuation: {
+    assessment: string;
+    evidence: string;
+    significance: string;
+  };
+  leverage: {
+    assessment: string;
+    evidence: string;
+    significance: string;
+  };
+}
+
+interface RecentNews {
+  title: string;
+  summary: string;
+  relevance: string;
+  publisher: string;
+  published_at: string;
+  url: string;
+}
+
+interface Opportunity {
+  point: string;
+  evidence: string;
+  why_it_matters: string;
+}
+
+interface Risk {
+  point: string;
+  evidence: string;
+  why_it_matters: string;
+}
+
+interface AnalysisResponse {
+  company_overview: {
+    summary: string;
+  };
+  financial_health: FinancialHealth;
+  recent_news: RecentNews[];
+  opportunities: Opportunity[];
+  risks: Risk[];
+  overall_perspective: {
+    summary: string;
+  };
+  disclaimer: string;
+}
+
 interface AnalysisData {
   symbol: string;
-  analysis: string;
+  analysis: AnalysisResponse;
 }
 
-const LINE_RE = /\n/;
-
-function splitBlocks(text: string): string[] {
-  return text.split(/\n{2,}/);
+function SectionCard({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-sm">
+      <h3 className="text-base font-semibold text-slate-900 mb-3">
+        {title}
+      </h3>
+      <div className="space-y-3">{children}</div>
+    </div>
+  );
 }
 
-function parseInline(segment: string): React.ReactNode[] {
-  const nodes: React.ReactNode[] = [];
-  let remaining = segment;
-  let key = 0;
-
-  while (remaining.length > 0) {
-    const boldItalic = remaining.match(/^\*\*\*(.+?)\*\*\*/);
-    if (boldItalic) {
-      nodes.push(
-        <strong key={key++} className="font-semibold">
-          <em>{boldItalic[1]}</em>
-        </strong>
-      );
-      remaining = remaining.slice(boldItalic[0].length);
-      continue;
-    }
-
-    const bold = remaining.match(/^\*\*(.+?)\*\*/);
-    if (bold) {
-      nodes.push(
-        <strong key={key++} className="font-semibold text-slate-900">
-          {bold[1]}
-        </strong>
-      );
-      remaining = remaining.slice(bold[0].length);
-      continue;
-    }
-
-    const italic = remaining.match(/^\*(.+?)\*/);
-    if (italic) {
-      nodes.push(
-        <em key={key++} className="italic">
-          {italic[1]}
-        </em>
-      );
-      remaining = remaining.slice(italic[0].length);
-      continue;
-    }
-
-    const nextMarker = remaining.search(/\*\*|\*|___/);
-    const sliceEnd = nextMarker === -1 ? remaining.length : nextMarker;
-    const textSlice = remaining.slice(0, sliceEnd);
-
-    if (textSlice.length > 0) {
-      nodes.push(textSlice);
-      key++;
-    }
-
-    remaining = remaining.slice(sliceEnd);
-  }
-
-  return nodes;
-}
-
-function parseLines(raw: string): React.ReactNode[] {
-  const lines = raw.split(LINE_RE);
-  const elements: React.ReactNode[] = [];
-  let i = 0;
-
-  while (i < lines.length) {
-    const line = lines[i];
-
-    if (/^#{1,6}\s/.test(line)) {
-      const match = line.match(/^(#{1,6})\s+(.*)/);
-      if (match) {
-        const level = match[1].length;
-        const content = parseInline(match[2]);
-
-        const sizeClasses =
-          level <= 2
-            ? "text-xl font-semibold text-slate-900 mt-5 mb-2"
-            : level === 3
-            ? "text-lg font-semibold text-slate-900 mt-4 mb-2"
-            : "text-base font-semibold text-slate-900 mt-3 mb-1";
-
-        if (level <= 2) {
-          elements.push(
-            <h2 key={i} className={sizeClasses}>
-              {content}
-            </h2>
-          );
-        } else if (level === 3) {
-          elements.push(
-            <h3 key={i} className={sizeClasses}>
-              {content}
-            </h3>
-          );
-        } else {
-          elements.push(
-            <h4 key={i} className={sizeClasses}>
-              {content}
-            </h4>
-          );
-        }
-        i++;
-        continue;
-      }
-    }
-
-    if (/^\s*[-*]\s/.test(line)) {
-      const items: string[] = [];
-      while (i < lines.length && /^\s*[-*]\s/.test(lines[i])) {
-        items.push(lines[i].replace(/^\s*[-*]\s/, ""));
-        i++;
-      }
-
-      elements.push(
-        <ul key={`ul-${i}`} className="list-disc list-inside mb-3 space-y-1">
-          {items.map((item, idx) => (
-            <li key={idx} className="text-sm text-slate-700">
-              {parseInline(item)}
-            </li>
-          ))}
-        </ul>
-      );
-      continue;
-    }
-
-    if (/^\s*\d+\.\s/.test(line)) {
-      const items: string[] = [];
-      while (
-        i < lines.length &&
-        /^\s*\d+\.\s/.test(lines[i])
-      ) {
-        items.push(lines[i].replace(/^\s*\d+\.\s/, ""));
-        i++;
-      }
-
-      elements.push(
-        <ol key={`ol-${i}`} className="list-decimal list-inside mb-3 space-y-1">
-          {items.map((item, idx) => (
-            <li key={idx} className="text-sm text-slate-700">
-              {parseInline(item)}
-            </li>
-          ))}
-        </ol>
-      );
-      continue;
-    }
-
-    if (/^\s*[-]{3,}\s*$/.test(line)) {
-      elements.push(
-        <hr
-          key={`hr-${i}`}
-          className="my-4 border-slate-200"
-        />
-      );
-      i++;
-      continue;
-    }
-
-    if (line.trim().length === 0) {
-      i++;
-      continue;
-    }
-
-    const content = parseInline(line);
-    elements.push(
-      <p key={i} className="text-sm text-slate-700 mb-2">
-        {content}
+function MetricBlock({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div>
+      <p className="text-xs font-medium uppercase tracking-wider text-slate-500 mb-1">
+        {label}
       </p>
-    );
-    i++;
-  }
-
-  return elements;
-}
-
-function renderMarkdown(text: string): React.ReactNode[] {
-  const blocks = splitBlocks(text);
-  const elements: React.ReactNode[] = [];
-  let key = 0;
-
-  for (const block of blocks) {
-    if (block.trim().length === 0) {
-      continue;
-    }
-
-    const hasMultipleLines = LINE_RE.test(block);
-
-    if (hasMultipleLines) {
-      elements.push(...parseLines(block));
-    } else {
-      elements.push(
-        <p key={key++} className="text-sm text-slate-700 mb-2">
-          {parseInline(block)}
-        </p>
-      );
-    }
-  }
-
-  return elements;
+      <p className="text-sm text-slate-700 whitespace-pre-wrap">{value}</p>
+    </div>
+  );
 }
 
 export default function Home() {
@@ -587,8 +486,197 @@ export default function Home() {
               )}
 
               {analysisData && !analysisLoading && (
-                <div className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm">
-                  {renderMarkdown(analysisData.analysis)}
+                <div className="space-y-6">
+                  <SectionCard title="Company Overview">
+                    <p className="text-sm text-slate-700 whitespace-pre-wrap">
+                      {analysisData.analysis.company_overview.summary}
+                    </p>
+                  </SectionCard>
+
+                  <SectionCard title="Financial Health">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <MetricBlock
+                        label="Overall Assessment"
+                        value={analysisData.analysis.financial_health.overall_assessment}
+                      />
+                      <MetricBlock
+                        label="Overall Reasoning"
+                        value={analysisData.analysis.financial_health.overall_reasoning}
+                      />
+                    </div>
+                    <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <MetricBlock
+                        label="Growth"
+                        value={
+                          analysisData.analysis.financial_health.growth.assessment +
+                          "\n\n" +
+                          analysisData.analysis.financial_health.growth.evidence +
+                          "\n\n" +
+                          analysisData.analysis.financial_health.growth.significance
+                        }
+                      />
+                      <MetricBlock
+                        label="Profitability"
+                        value={
+                          analysisData.analysis.financial_health.profitability.assessment +
+                          "\n\n" +
+                          analysisData.analysis.financial_health.profitability.evidence +
+                          "\n\n" +
+                          analysisData.analysis.financial_health.profitability.significance
+                        }
+                      />
+                      <MetricBlock
+                        label="Efficiency"
+                        value={
+                          analysisData.analysis.financial_health.efficiency.assessment +
+                          "\n\n" +
+                          analysisData.analysis.financial_health.efficiency.evidence +
+                          "\n\n" +
+                          analysisData.analysis.financial_health.efficiency.significance
+                        }
+                      />
+                      <MetricBlock
+                        label="Valuation"
+                        value={
+                          analysisData.analysis.financial_health.valuation.assessment +
+                          "\n\n" +
+                          analysisData.analysis.financial_health.valuation.evidence +
+                          "\n\n" +
+                          analysisData.analysis.financial_health.valuation.significance
+                        }
+                      />
+                      <MetricBlock
+                        label="Leverage"
+                        value={
+                          analysisData.analysis.financial_health.leverage.assessment +
+                          "\n\n" +
+                          analysisData.analysis.financial_health.leverage.evidence +
+                          "\n\n" +
+                          analysisData.analysis.financial_health.leverage.significance
+                        }
+                      />
+                    </div>
+                  </SectionCard>
+
+                  <SectionCard title="Important Recent News">
+                    <div className="space-y-4">
+                      {analysisData.analysis.recent_news.map((item, index) => (
+                        <div
+                          key={index}
+                          className="rounded-xl border border-slate-100 bg-slate-50 p-4"
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <h4 className="text-sm font-semibold text-slate-900">
+                              {item.title}
+                            </h4>
+                            <span className="text-xs font-medium text-indigo-700 bg-indigo-50 px-2 py-1 rounded-lg">
+                              {item.relevance}
+                            </span>
+                          </div>
+                          {item.summary && (
+                            <p className="text-sm text-slate-600 mb-2">
+                              {item.summary}
+                            </p>
+                          )}
+                          <div className="flex items-center justify-between text-xs text-slate-500">
+                            <span>{item.publisher}</span>
+                            <span>
+                              {new Date(item.published_at).toLocaleString()}
+                            </span>
+                          </div>
+                          {item.url && (
+                            <a
+                              href={item.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center text-xs font-medium text-indigo-600 hover:text-indigo-700 mt-2 transition-colors"
+                            >
+                              Read full article
+                              <svg
+                                className="ml-1 h-3 w-3"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                strokeWidth={2}
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M13 7l5 5m0 0l-5 5m5-5H6"
+                                />
+                              </svg>
+                            </a>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </SectionCard>
+
+                  <SectionCard title="Potential Positive Factors">
+                    <div className="space-y-4">
+                      {analysisData.analysis.opportunities.map((item, index) => (
+                        <div
+                          key={index}
+                          className="rounded-xl border border-slate-100 bg-slate-50 p-4"
+                        >
+                          <h4 className="text-sm font-semibold text-slate-900 mb-1">
+                            {item.point}
+                          </h4>
+                          <p className="text-sm text-slate-600 mb-1">
+                            <span className="font-medium text-slate-700">
+                              Evidence:
+                            </span>{" "}
+                            {item.evidence}
+                          </p>
+                          <p className="text-sm text-slate-600">
+                            <span className="font-medium text-slate-700">
+                              Why it matters:
+                            </span>{" "}
+                            {item.why_it_matters}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </SectionCard>
+
+                  <SectionCard title="Potential Risks">
+                    <div className="space-y-4">
+                      {analysisData.analysis.risks.map((item, index) => (
+                        <div
+                          key={index}
+                          className="rounded-xl border border-slate-100 bg-slate-50 p-4"
+                        >
+                          <h4 className="text-sm font-semibold text-slate-900 mb-1">
+                            {item.point}
+                          </h4>
+                          <p className="text-sm text-slate-600 mb-1">
+                            <span className="font-medium text-slate-700">
+                              Evidence:
+                            </span>{" "}
+                            {item.evidence}
+                          </p>
+                          <p className="text-sm text-slate-600">
+                            <span className="font-medium text-slate-700">
+                              Why it matters:
+                            </span>{" "}
+                            {item.why_it_matters}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </SectionCard>
+
+                  <SectionCard title="Overall Research Perspective">
+                    <p className="text-sm text-slate-700 whitespace-pre-wrap">
+                      {analysisData.analysis.overall_perspective.summary}
+                    </p>
+                  </SectionCard>
+
+                  <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                    <p className="text-xs text-slate-500">
+                      {analysisData.analysis.disclaimer}
+                    </p>
+                  </div>
                 </div>
               )}
             </section>

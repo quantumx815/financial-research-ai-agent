@@ -1,7 +1,7 @@
 import yfinance as yf
 
 
-def get_company_news(symbol: str, count: int = 5):
+def get_company_news(symbol: str, count: int = 10):
     ticker = yf.Ticker(symbol.upper())
 
     news = ticker.get_news(count=count)

@@ -24,3 +24,9 @@ Thumbs.db
 
 # Logs
 *.log
+
+# RAG
+Data/chroma/
+Backend/Data/chroma/
+# Local RAG documents and generated data
+Backend/Data/financial_documents/

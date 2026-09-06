@@ -3,6 +3,7 @@ from fastapi import APIRouter, HTTPException
 from services.financial_data import get_company_data
 from services.news_service import get_company_news
 from services.gemini_service import generate_financial_analysis
+from services.rag_service import rag_service
 
 router = APIRouter()
 
@@ -42,9 +43,22 @@ def get_company_analysis(symbol: str):
         company_data = get_company_data(symbol)
         news = get_company_news(symbol)
 
+        rag_context = None
+        try:
+            query_text = (
+                f"What are {symbol}'s major financial risks, "
+                f"business risks, opportunities, and financial performance?"
+            )
+            rag_response = rag_service.query(query_text, symbol, n_results=5)
+            if rag_response.error is None and rag_response.results:
+                rag_context = rag_response
+        except Exception:
+            rag_context = None
+
         analysis = generate_financial_analysis(
             company_data,
-            news
+            news,
+            rag_context=rag_context
         )
 
         return {

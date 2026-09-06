@@ -26,13 +26,33 @@ def _parse_analysis_response(raw_text: str) -> dict:
     return json.loads(cleaned)
 
 
-def generate_financial_analysis(company_data, news):
+def generate_financial_analysis(company_data, news, rag_context=None):
     research_package = build_research_package(company_data, news)
+
+    rag_evidence_text = ""
+    if rag_context and rag_context.results:
+        rag_evidence_text = "\n\nSEC Filing Evidence:\n"
+        rag_evidence_text += (
+            "The following excerpts were retrieved from official SEC filings "
+            "using semantic search.\n"
+            "Use this evidence to strengthen and verify your analysis where relevant.\n"
+            "Do not claim an SEC filing supports a statement if the evidence does not support it.\n"
+            "If SEC evidence is unavailable, rely on the available financial data and recent news.\n"
+            "Never fabricate missing evidence.\n\n"
+        )
+        for idx, result in enumerate(rag_context.results, 1):
+            rag_evidence_text += (
+                f"[{idx}] {result.document_type} ({result.document_year})\n"
+                f"Document ID: {result.document_id}\n"
+                f"Chunk Index: {result.chunk_index}\n"
+                f"Source: {result.source} - {result.source_url}\n"
+                f"Text: {result.chunk_text}\n\n"
+            )
 
     prompt = f"""
 You are a financial research assistant.
 
-Analyze the following company information and recent news.
+Analyze the following company information, recent news, and SEC filing evidence.
 The news articles have already been ranked by local relevance score.
 Higher-relevance articles should be weighted more heavily when discussing important recent news, positive factors, and risks.
 Do not completely ignore lower-relevance articles if they contain useful context.
@@ -45,7 +65,7 @@ Financial Metrics:
 
 Recent News:
 {research_package["recent_news"]}
-
+{rag_evidence_text}
 Financial Health Analysis Requirements:
 For each financial health category below, do not simply restate the metric. Instead, provide:
 1. The relevant metric or value from the research package.
@@ -85,23 +105,25 @@ Overall Financial Health:
 - If important metrics are unavailable, explicitly mention that the assessment is based only on the available metrics.
 
 Opportunity Analysis Requirements:
-- Identify potential opportunities only when supported by the provided financial data or news.
+- Identify potential opportunities only when supported by the provided financial data, news, or SEC filing evidence.
 - For each important opportunity:
   1. State the opportunity.
   2. Explain the evidence supporting it from the research package.
   3. Explain why it could matter to the company.
 - Connect financial metrics and news when appropriate. For example, strong revenue growth together with demand-related news may support continued expansion.
+- When SEC filing evidence is provided, prioritize it for risk and opportunity analysis when it directly supports a finding.
 - Do not present an opportunity as a guaranteed future outcome.
 - Use cautious language such as: may, could, suggests, indicates, appears.
 - Do not use unsupported certainty such as: definitely, guaranteed, will certainly.
 
 Risk Analysis Requirements:
-- Identify potential risks only when supported by the provided financial data or news.
+- Identify potential risks only when supported by the provided financial data, news, or SEC filing evidence.
 - For each important risk:
   1. State the risk.
   2. Explain the evidence supporting it from the research package.
   3. Explain why it could matter to the company.
 - Connect financial metrics and news when appropriate.
+- When SEC filing evidence is provided, prioritize it for risk and opportunity analysis when it directly supports a finding.
 - Do not present uncertain information as confirmed fact.
 - Use cautious language such as: may, could, suggests, indicates, appears.
 - Do not use unsupported certainty such as: definitely, guaranteed, will certainly.
@@ -109,7 +131,7 @@ Risk Analysis Requirements:
 General Instructions:
 - Base all analysis strictly on the values provided above. If a metric is missing or None, do not invent it.
 - Distinguish between facts directly provided in the research package and reasonable interpretations based on that information. Do not present speculation as confirmed fact.
-- Risks and opportunities must be supported by the provided financial data or news.
+- Risks and opportunities must be supported by the provided financial data, news, or SEC filing evidence.
 - Do NOT provide investment recommendations. Do not use phrases such as buy signal, sell signal, buy recommendation, sell recommendation, hold recommendation, good time to buy, good entry point, investors should buy, investors should sell, or price target.
 - Use neutral research terminology such as: positive factor, potential opportunity, risk factor, valuation consideration, research observation, market consideration.
 - Clearly state that this output is informational/educational research and is not financial advice or a buy/sell/hold recommendation.

@@ -1,6 +1,6 @@
 import os
-from dataclasses import dataclass
-from typing import Optional
+from dataclasses import dataclass, field
+from typing import List, Optional
 
 import chromadb
 from chromadb.config import Settings
@@ -28,6 +28,30 @@ class DocumentMetadata:
     document_id: str
     chunk_index: Optional[int] = None
     section: Optional[str] = None
+
+
+@dataclass
+class RetrievalResult:
+    chunk_id: str
+    chunk_text: str
+    company_symbol: str
+    document_type: str
+    document_year: Optional[int]
+    source: str
+    source_url: Optional[str]
+    document_id: str
+    chunk_index: Optional[int]
+    distance: Optional[float]
+
+
+@dataclass
+class RetrievalResponse:
+    query: str
+    company_symbol: str
+    top_k: int
+    results: List[RetrievalResult] = field(default_factory=list)
+    total_found: int = 0
+    error: Optional[str] = None
 
 
 class RAGService:
@@ -101,16 +125,78 @@ class RAGService:
         query_text: str,
         company_symbol: str,
         n_results: int = 5,
-    ) -> dict:
-        query_embedding = generate_embedding(query_text)
+    ) -> RetrievalResponse:
+        if not query_text or not query_text.strip():
+            return RetrievalResponse(
+                query=query_text or "",
+                company_symbol=company_symbol.upper() if company_symbol else "",
+                top_k=n_results,
+                error="Query text is empty.",
+            )
 
-        results = self._collection.query(
-            query_embeddings=[query_embedding],
-            n_results=n_results,
-            where={"company_symbol": company_symbol.upper()},
+        if not company_symbol or not company_symbol.strip():
+            return RetrievalResponse(
+                query=query_text,
+                company_symbol=company_symbol or "",
+                top_k=n_results,
+                error="Company symbol is empty.",
+            )
+
+        try:
+            query_embedding = generate_embedding(query_text)
+        except Exception as exc:
+            return RetrievalResponse(
+                query=query_text,
+                company_symbol=company_symbol.upper(),
+                top_k=n_results,
+                error=f"Embedding generation failed: {exc}",
+            )
+
+        try:
+            raw_results = self._collection.query(
+                query_embeddings=[query_embedding],
+                n_results=n_results,
+                where={"company_symbol": company_symbol.upper()},
+            )
+        except Exception as exc:
+            return RetrievalResponse(
+                query=query_text,
+                company_symbol=company_symbol.upper(),
+                top_k=n_results,
+                error=f"ChromaDB query failed: {exc}",
+            )
+
+        results: List[RetrievalResult] = []
+
+        ids = raw_results.get("ids", [[]])[0] if raw_results.get("ids") else []
+        documents = raw_results.get("documents", [[]])[0] if raw_results.get("documents") else []
+        metadatas = raw_results.get("metadatas", [[]])[0] if raw_results.get("metadatas") else []
+        distances = raw_results.get("distances", [[]])[0] if raw_results.get("distances") else []
+
+        for idx in range(len(ids)):
+            metadata = metadatas[idx] if idx < len(metadatas) else {}
+            results.append(
+                RetrievalResult(
+                    chunk_id=ids[idx] if idx < len(ids) else "",
+                    chunk_text=documents[idx] if idx < len(documents) else "",
+                    company_symbol=metadata.get("company_symbol", company_symbol.upper()),
+                    document_type=metadata.get("document_type", ""),
+                    document_year=metadata.get("document_year") or None,
+                    source=metadata.get("source", ""),
+                    source_url=metadata.get("source_url") or None,
+                    document_id=metadata.get("document_id", ""),
+                    chunk_index=metadata.get("chunk_index") if metadata.get("chunk_index") is not None else None,
+                    distance=distances[idx] if idx < len(distances) else None,
+                )
+            )
+
+        return RetrievalResponse(
+            query=query_text,
+            company_symbol=company_symbol.upper(),
+            top_k=n_results,
+            results=results,
+            total_found=len(results),
         )
-
-        return results
 
     def list_companies(self) -> list[str]:
         results = self._collection.get()

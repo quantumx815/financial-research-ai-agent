@@ -85,9 +85,20 @@ interface AnalysisResponse {
   disclaimer: string;
 }
 
+interface SecEvidence {
+  document_type: string;
+  document_year: number | null;
+  document_id: string;
+  chunk_index: number | null;
+  source: string;
+  source_url: string | null;
+  chunk_text: string;
+}
+
 interface AnalysisData {
   symbol: string;
   analysis: AnalysisResponse;
+  sec_evidence?: SecEvidence[];
 }
 
 function SectionCard({
@@ -671,6 +682,58 @@ export default function Home() {
                       {analysisData.analysis.overall_perspective.summary}
                     </p>
                   </SectionCard>
+
+                  {analysisData.sec_evidence && analysisData.sec_evidence.length > 0 && (
+                    <SectionCard title="Supporting SEC Evidence">
+                      <div className="space-y-4">
+                        {analysisData.sec_evidence.map((item, index) => (
+                          <div
+                            key={index}
+                            className="rounded-xl border border-slate-100 bg-slate-50 p-4"
+                          >
+                            <div className="flex items-center justify-between mb-2">
+                              <h4 className="text-sm font-semibold text-slate-900">
+                                {item.document_type} ({item.document_year})
+                              </h4>
+                              <span className="text-xs text-slate-500">
+                                Chunk {item.chunk_index}
+                              </span>
+                            </div>
+                            <p className="text-sm text-slate-600 mb-2 whitespace-pre-wrap">
+                              {item.chunk_text}
+                            </p>
+                            <div className="text-xs text-slate-500">
+                              <span>Document ID: {item.document_id}</span>
+                              <span className="ml-4">Source: {item.source}</span>
+                            </div>
+                            {item.source_url && (
+                              <a
+                                href={item.source_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center text-xs font-medium text-indigo-600 hover:text-indigo-700 mt-2 transition-colors"
+                              >
+                                View SEC filing
+                                <svg
+                                  className="ml-1 h-3 w-3"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                  strokeWidth={2}
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    d="M13 7l5 5m0 0l-5 5m5-5H6"
+                                  />
+                                </svg>
+                              </a>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </SectionCard>
+                  )}
 
                   <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                     <p className="text-xs text-slate-500">

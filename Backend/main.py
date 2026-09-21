@@ -1,4 +1,5 @@
 from routes.company import router as company_router
+from routes.research import router as research_router
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -19,6 +20,7 @@ app.add_middleware(
 )
 
 app.include_router(company_router, prefix="/api")
+app.include_router(research_router, prefix="/api")
 
 
 @app.get("/")

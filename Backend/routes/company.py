@@ -61,10 +61,26 @@ def get_company_analysis(symbol: str):
             rag_context=rag_context
         )
 
-        return {
+        response = {
             "symbol": symbol,
             "analysis": analysis
         }
+
+        if rag_context and rag_context.error is None and rag_context.results:
+            response["sec_evidence"] = [
+                {
+                    "document_type": result.document_type,
+                    "document_year": result.document_year,
+                    "document_id": result.document_id,
+                    "chunk_index": result.chunk_index,
+                    "source": result.source,
+                    "source_url": result.source_url,
+                    "chunk_text": result.chunk_text,
+                }
+                for result in rag_context.results
+            ]
+
+        return response
 
     except Exception:
         raise HTTPException(

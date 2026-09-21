@@ -99,7 +99,8 @@ class TestRAGServiceQuery(unittest.TestCase):
 
         self.service._collection.query.assert_called_once()
         call_kwargs = self.service._collection.query.call_args.kwargs
-        self.assertEqual(call_kwargs["n_results"], 10)
+        # Query fetches 2x n_results to allow for generation filtering
+        self.assertEqual(call_kwargs["n_results"], 20)
 
     def test_multiple_results_are_returned(self):
         mock_results = {

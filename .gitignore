@@ -30,3 +30,30 @@ Data/chroma/
 Backend/Data/chroma/
 # Local RAG documents and generated data
 Backend/Data/financial_documents/
+
+# Local downloaded models
+Backend/models/
+
+# Local experiments / evaluation outputs
+Backend/*_*.json
+Backend/dry_run_*.txt
+Backend/debug_*.py
+Backend/analyze_chunks*.py
+Backend/check_*.py
+Backend/compare_*.py
+Backend/evaluation_*.json
+Backend/extract_evaluation_chunks.py
+Backend/ingest_bge_pilot.py
+Backend/run_dry_run.py
+Backend/run_embedding_evaluation.py
+Backend/run_integration_test.py
+Backend/run_pilot_migration.py
+Backend/test_bge_pilot.py
+Backend/test_retrieval*.py
+Backend/validate_low_similarity.py
+Data/chroma_test_integration/
+.kilo/
+
+# Local Chroma databases
+Backend/Data/chroma_bge/
+Backend/Data/chroma_test_integration/

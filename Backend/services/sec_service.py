@@ -51,7 +51,18 @@ def resolve_ticker_to_cik(ticker: str) -> Optional[str]:
     return None
 
 
-def get_latest_filing(cik: str, filing_types: list[str] | None = None):
+def get_recent_filings(cik: str, filing_types: list[str] | None = None, limit: int = 5):
+    """
+    Get multiple recent filings for a CIK.
+    
+    Args:
+        cik: 10-digit CIK string
+        filing_types: List of form types to filter (default: 10-K, 10-Q)
+        limit: Maximum number of filings to return
+        
+    Returns:
+        List of filing dicts, most recent first
+    """
     if filing_types is None:
         filing_types = list(SUPPORTED_FILING_TYPES)
 
@@ -66,7 +77,7 @@ def get_latest_filing(cik: str, filing_types: list[str] | None = None):
         response.raise_for_status()
         data = response.json()
     except Exception:
-        return None
+        return []
 
     filings = data.get("filings", {}).get("recent", {})
     forms = filings.get("form", [])
@@ -75,6 +86,7 @@ def get_latest_filing(cik: str, filing_types: list[str] | None = None):
     primary_documents = filings.get("primaryDocument", [])
     primary_document_descriptions = filings.get("primaryDocumentDescription", [])
 
+    results = []
     for index, form in enumerate(forms):
         if form not in filing_types:
             continue
@@ -92,7 +104,7 @@ def get_latest_filing(cik: str, filing_types: list[str] | None = None):
             f"{SEC_ARCHIVE_BASE}/{int(cik)}/{accession_no_dashes}/{filename}"
         )
 
-        return {
+        results.append({
             "cik": cik,
             "accession_number": accession_raw,
             "accession_no_dashes": accession_no_dashes,
@@ -101,9 +113,18 @@ def get_latest_filing(cik: str, filing_types: list[str] | None = None):
             "primary_document": filename,
             "description": description,
             "document_url": document_url,
-        }
+        })
 
-    return None
+        if len(results) >= limit:
+            break
+
+    return results
+
+
+def get_latest_filing(cik: str, filing_types: list[str] | None = None):
+    """Get the single most recent filing (backward compatible)."""
+    filings = get_recent_filings(cik, filing_types, limit=1)
+    return filings[0] if filings else None
 
 
 def download_filing_content(url: str) -> Optional[bytes]:

@@ -1,6 +1,7 @@
 import os
 import sys
 from unittest.mock import patch, MagicMock
+from dataclasses import dataclass
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -15,6 +16,7 @@ from services.financial_qa_service import (
     _format_evidence_metadata,
 )
 from services.bge_rag_service import RetrievalResult
+from services.dynamic_research_service import DynamicResearchResult
 
 
 class TestFinancialQAService:
@@ -124,22 +126,33 @@ class TestFinancialQAService:
 
     @patch("services.financial_qa_service._GEMINI_CLIENT")
     @patch("services.financial_qa_service.bge_query_service")
+    @patch("services.financial_qa_service.research_and_ingest_company")
     def test_company_not_available_no_gemini_call(
-        self, mock_bge_service, mock_gemini_client
+        self, mock_research, mock_bge_service, mock_gemini_client
     ):
-        """Test company unavailable -> no Gemini call."""
-        mock_bge_response = MagicMock()
-        mock_bge_response.available = False
-        mock_bge_response.error = "Company UNKNOWN not indexed"
-        mock_bge_response.symbol = "UNKNOWN"
-        mock_bge_response.query = "test query"
-        mock_bge_service.query.return_value = mock_bge_response
+        """Test company unavailable -> dynamic research triggered -> no Gemini call if research fails."""
+        # First BGE call: company not available
+        mock_bge_response_1 = MagicMock()
+        mock_bge_response_1.available = False
+        mock_bge_response_1.error = "Company UNKNOWN not indexed"
+        mock_bge_response_1.symbol = "UNKNOWN"
+        mock_bge_response_1.query = "test query"
+        
+        # Dynamic research fails
+        mock_research.return_value = DynamicResearchResult(
+            symbol="UNKNOWN",
+            errors=["Failed to resolve CIK for UNKNOWN"]
+        )
+        
+        mock_bge_service.query.return_value = mock_bge_response_1
 
         response = answer_financial_question("UNKNOWN", "test query")
 
         assert response.available is False
-        assert "not indexed" in response.error
+        assert "Dynamic research failed" in response.error
+        assert "Failed to resolve CIK" in response.error
         mock_gemini_client.models.generate_content.assert_not_called()
+        mock_research.assert_called_once_with(symbol="UNKNOWN", filing_limit=3, filing_types=["10-K", "10-Q"])
 
     @patch("services.financial_qa_service._GEMINI_CLIENT")
     @patch("services.financial_qa_service.bge_query_service")
@@ -204,40 +217,26 @@ class TestFinancialQAService:
     @patch("services.financial_qa_service._GEMINI_CLIENT")
     @patch("services.financial_qa_service.bge_query_service")
     def test_empty_query_handled(self, mock_bge_service, mock_gemini_client):
-        """Test empty query -> passes to BGE which handles it."""
-        mock_bge_response = MagicMock()
-        mock_bge_response.available = True
-        mock_bge_response.results = []
-        mock_bge_response.total_found = 0
-        mock_bge_response.error = None
-        mock_bge_response.symbol = "TEST"
-        mock_bge_response.query = ""
-        mock_bge_service.query.return_value = mock_bge_response
-
+        """Test empty query -> returns error early without calling BGE or Gemini."""
         response = answer_financial_question("TEST", "")
 
-        assert response.available is True
+        assert response.available is False
+        assert response.error == "Query text is empty."
         assert response.evidence_count == 0
-        assert "No relevant SEC filing evidence" in response.answer
+        mock_gemini_client.models.generate_content.assert_not_called()
+        mock_bge_service.query.assert_not_called()
 
     @patch("services.financial_qa_service._GEMINI_CLIENT")
     @patch("services.financial_qa_service.bge_query_service")
     def test_empty_symbol_handled(self, mock_bge_service, mock_gemini_client):
-        """Test empty symbol -> passes to BGE which handles it."""
-        mock_bge_response = MagicMock()
-        mock_bge_response.available = True
-        mock_bge_response.results = []
-        mock_bge_response.total_found = 0
-        mock_bge_response.error = None
-        mock_bge_response.symbol = ""
-        mock_bge_response.query = "test query"
-        mock_bge_service.query.return_value = mock_bge_response
-
+        """Test empty symbol -> returns error early without calling BGE or Gemini."""
         response = answer_financial_question("", "test query")
 
-        assert response.available is True
+        assert response.available is False
+        assert response.error == "Invalid or empty symbol"
         assert response.evidence_count == 0
-        assert "No relevant SEC filing evidence" in response.answer
+        mock_gemini_client.models.generate_content.assert_not_called()
+        mock_bge_service.query.assert_not_called()
 
     @patch("services.financial_qa_service._GEMINI_CLIENT")
     @patch("services.financial_qa_service.bge_query_service")
@@ -451,6 +450,159 @@ class TestFinancialQAService:
         assert parsed["answer"] == "Test"
         assert parsed["sufficient_evidence"] is False
 
+    @patch("services.financial_qa_service._GEMINI_CLIENT")
+    @patch("services.financial_qa_service.bge_query_service")
+    @patch("services.financial_qa_service.research_and_ingest_company")
+    def test_dynamic_research_succeeds_then_bge_returns_evidence(
+        self, mock_research, mock_bge_service, mock_gemini_client
+    ):
+        """Test dynamic research succeeds -> BGE query retried -> evidence returned -> Gemini called."""
+        # First BGE call: company not available
+        mock_bge_response_1 = MagicMock()
+        mock_bge_response_1.available = False
+        mock_bge_response_1.error = "Company NEWCO not indexed"
+        mock_bge_response_1.symbol = "NEWCO"
+        mock_bge_response_1.query = "What are the risks?"
+        
+        # Dynamic research succeeds (no errors)
+        mock_research.return_value = DynamicResearchResult(
+            symbol="NEWCO",
+            errors=[],
+            chunks_stored=5,
+        )
+        
+        # Second BGE call (after research): company now available with evidence
+        mock_results = [
+            RetrievalResult(
+                chunk_id="chunk-1",
+                chunk_text="The company faces market risk from currency fluctuations.",
+                company_symbol="NEWCO",
+                document_type="10-Q",
+                document_year=2026,
+                source="SEC",
+                source_url="https://example.com",
+                document_id="doc-001",
+                chunk_index=0,
+                distance=0.35,
+                embedding_model="BAAI/bge-small-en-v1.5",
+                section="Item 1A - Risk Factors",
+            ),
+        ]
+        mock_bge_response_2 = MagicMock()
+        mock_bge_response_2.available = True
+        mock_bge_response_2.results = mock_results
+        mock_bge_response_2.total_found = 1
+        mock_bge_response_2.error = None
+        mock_bge_response_2.symbol = "NEWCO"
+        mock_bge_response_2.query = "What are the risks?"
+        
+        # BGE query called twice: first returns not available, second returns evidence
+        mock_bge_service.query.side_effect = [mock_bge_response_1, mock_bge_response_2]
+
+        # Mock: Gemini returns grounded answer
+        mock_gemini_response = MagicMock()
+        mock_gemini_response.text = '{"answer": "Based on Evidence 1, the company faces market risk from currency fluctuations.", "sufficient_evidence": true}'
+        mock_gemini_client.models.generate_content.return_value = mock_gemini_response
+
+        # Run
+        response = answer_financial_question("NEWCO", "What are the risks?")
+
+        # Assert
+        assert response.available is True
+        assert response.error is None
+        assert response.evidence_count == 1
+        assert "currency fluctuations" in response.answer
+        assert response.evidence[0]["section"] == "Item 1A - Risk Factors"
+        
+        # Verify BGE query called twice
+        assert mock_bge_service.query.call_count == 2
+        # Verify research called once
+        mock_research.assert_called_once_with(symbol="NEWCO", filing_limit=3, filing_types=["10-K", "10-Q"])
+        # Verify Gemini called
+        mock_gemini_client.models.generate_content.assert_called_once()
+
+    @patch("services.financial_qa_service._GEMINI_CLIENT")
+    @patch("services.financial_qa_service.bge_query_service")
+    @patch("services.financial_qa_service.research_and_ingest_company")
+    def test_dynamic_research_succeeds_but_no_evidence_found(
+        self, mock_research, mock_bge_service, mock_gemini_client
+    ):
+        """Test dynamic research succeeds -> BGE query retried -> no evidence -> no Gemini call."""
+        # First BGE call: company not available
+        mock_bge_response_1 = MagicMock()
+        mock_bge_response_1.available = False
+        mock_bge_response_1.error = "Company NEWCO not indexed"
+        mock_bge_response_1.symbol = "NEWCO"
+        mock_bge_response_1.query = "What are the risks?"
+        
+        # Dynamic research succeeds
+        mock_research.return_value = DynamicResearchResult(
+            symbol="NEWCO",
+            errors=[],
+            chunks_stored=5,
+        )
+        
+        # Second BGE call: available but no matching evidence
+        mock_bge_response_2 = MagicMock()
+        mock_bge_response_2.available = True
+        mock_bge_response_2.results = []
+        mock_bge_response_2.total_found = 0
+        mock_bge_response_2.error = None
+        mock_bge_response_2.symbol = "NEWCO"
+        mock_bge_response_2.query = "What are the risks?"
+        
+        mock_bge_service.query.side_effect = [mock_bge_response_1, mock_bge_response_2]
+
+        # Run
+        response = answer_financial_question("NEWCO", "What are the risks?")
+
+        # Assert
+        assert response.available is True
+        assert response.error is None
+        assert response.evidence_count == 0
+        assert "No relevant SEC filing evidence" in response.answer
+        
+        # Verify BGE query called twice
+        assert mock_bge_service.query.call_count == 2
+        # Verify research called once
+        mock_research.assert_called_once()
+        # Verify Gemini NOT called
+        mock_gemini_client.models.generate_content.assert_not_called()
+
+    @patch("services.financial_qa_service._GEMINI_CLIENT")
+    @patch("services.financial_qa_service.bge_query_service")
+    @patch("services.financial_qa_service.research_and_ingest_company")
+    def test_dynamic_research_fails_returns_error(
+        self, mock_research, mock_bge_service, mock_gemini_client
+    ):
+        """Test dynamic research fails -> returns error without calling Gemini."""
+        # First BGE call: company not available
+        mock_bge_response_1 = MagicMock()
+        mock_bge_response_1.available = False
+        mock_bge_response_1.error = "Company NEWCO not indexed"
+        mock_bge_response_1.symbol = "NEWCO"
+        mock_bge_response_1.query = "What are the risks?"
+        
+        mock_bge_service.query.return_value = mock_bge_response_1
+        
+        # Dynamic research fails
+        mock_research.return_value = DynamicResearchResult(
+            symbol="NEWCO",
+            errors=["SEC API error: timeout", "Failed to download filing"],
+        )
+
+        # Run
+        response = answer_financial_question("NEWCO", "What are the risks?")
+
+        # Assert
+        assert response.available is False
+        assert "Dynamic research failed" in response.error
+        assert "SEC API error" in response.error
+        
+        # Verify research called once
+        mock_research.assert_called_once()
+        # Verify Gemini NOT called
+        mock_gemini_client.models.generate_content.assert_not_called()
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

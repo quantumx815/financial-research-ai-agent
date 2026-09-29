@@ -34,38 +34,38 @@ _SEC_SECTION_PATTERNS = [
     
     # 10-Q specific sections (specific patterns with full titles)
     # More flexible patterns to match real SEC header variations
-    (r'Item\s+1\s*[\.:\-–—]?\s*Financial Statements\b', 'Item 1 - Financial Statements', '10-Q'),
-    (r'Item\s+2\s*[\.:\-–—]?\s*Management[\'\u2019]?s?\s*Discussion\b', 'Item 2 - MD&A', '10-Q'),
-    (r'Item\s+3\s*[\.:\-–—]?\s*Quantitative and Qualitative Disclosures\b', 'Item 3 - Market Risk', '10-Q'),
-    (r'Item\s+4\s*[\.:\-–—]?\s*Controls and Procedures\b', 'Item 4 - Controls and Procedures', '10-Q'),
+    (r'Item\s+1\s*[\.:\-–—]?\s*Financial Statements(?=[\s.$A-Z])', 'Item 1 - Financial Statements', '10-Q'),
+    (r'Item\s+2\s*[\.:\-–—]?\s*Management[\'\u2019]?s?\s*Discussion(?=[\s.$A-Z])', 'Item 2 - MD&A', '10-Q'),
+    (r'Item\s+3\s*[\.:\-–—]?\s*Quantitative and Qualitative Disclosures(?=[\s.$A-Z])', 'Item 3 - Market Risk', '10-Q'),
+    (r'Item\s+4\s*[\.:\-–—]?\s*Controls and Procedures(?=[\s.$A-Z])', 'Item 4 - Controls and Procedures', '10-Q'),
     
     # Part II 10-Q specific
-    (r'Item\s+1\s*[\.:\-–—]?\s*Legal Proceedings\b', 'Item 1 - Legal Proceedings', '10-Q'),
-    (r'Item\s+1A\s*[\.:\-–—]?\s*Risk Factors\b', 'Item 1A - Risk Factors', 'both'),
-    (r'Item\s+2\s*[\.:\-–—]?\s*Unregistered Sales\b', 'Item 2 - Unregistered Sales', '10-Q'),
-    (r'Item\s+3\s*[\.:\-–—]?\s*Defaults Upon Senior Securities\b', 'Item 3 - Defaults Upon Senior Securities', '10-Q'),
-    (r'Item\s+4\s*[\.:\-–—]?\s*Mine Safety Disclosures\b', 'Item 4 - Mine Safety Disclosures', 'both'),
-    (r'Item\s+5\s*[\.:\-–—]?\s*Other Information\b', 'Item 5 - Other Information', '10-Q'),
-    (r'Item\s+6\s*[\.:\-–—]?\s*Exhibits\b', 'Item 6 - Exhibits', 'both'),
+    (r'Item\s+1\s*[\.:\-–—]?\s*Legal Proceedings(?=[\s.$A-Z])', 'Item 1 - Legal Proceedings', '10-Q'),
+    (r'Item\s+1A\s*[\.:\-–—]?\s*Risk Factors(?=[\s.$A-Z])', 'Item 1A - Risk Factors', 'both'),
+    (r'Item\s+2\s*[\.:\-–—]?\s*Unregistered Sales(?=[\s.$A-Z])', 'Item 2 - Unregistered Sales', '10-Q'),
+    (r'Item\s+3\s*[\.:\-–—]?\s*Defaults Upon Senior Securities(?=[\s.$A-Z])', 'Item 3 - Defaults Upon Senior Securities', '10-Q'),
+    (r'Item\s+4\s*[\.:\-–—]?\s*Mine Safety Disclosures(?=[\s.$A-Z])', 'Item 4 - Mine Safety Disclosures', 'both'),
+    (r'Item\s+5\s*[\.:\-–—]?\s*Other Information(?=[\s.$A-Z])', 'Item 5 - Other Information', '10-Q'),
+    (r'Item\s+6\s*[\.:\-–—]?\s*Exhibits(?=[\s.$A-Z])', 'Item 6 - Exhibits', 'both'),
     
     # 10-K specific sections (Part I) - specific patterns
-    (r'Item\s+1\s*[\.:\-–—]?\s*Business\b', 'Item 1 - Business', '10-K'),
-    (r'Item\s+1A\s*[\.:\-–—]?\s*Risk Factors\b', 'Item 1A - Risk Factors', 'both'),
-    (r'Item\s+1B\s*[\.:\-–—]?\s*Unresolved Staff Comments\b', 'Item 1B - Unresolved Staff Comments', '10-K'),
-    (r'Item\s+1C\s*[\.:\-–—]?\s*Cybersecurity\b', 'Item 1C - Cybersecurity', '10-K'),
-    (r'Item\s+2\s*[\.:\-–—]?\s*Properties\b', 'Item 2 - Properties', '10-K'),
-    (r'Item\s+3\s*[\.:\-–—]?\s*Legal Proceedings\b', 'Item 3 - Legal Proceedings', '10-K'),
-    (r'Item\s+4\s*[\.:\-–—]?\s*Mine Safety Disclosures\b', 'Item 4 - Mine Safety Disclosures', 'both'),
+    (r'Item\s+1\s*[\.:\-–—]?\s*Business(?=[\s.$A-Z])', 'Item 1 - Business', '10-K'),
+    (r'Item\s+1A\s*[\.:\-–—]?\s*Risk Factors(?=[\s.$A-Z])', 'Item 1A - Risk Factors', 'both'),
+    (r'Item\s+1B\s*[\.:\-–—]?\s*Unresolved Staff Comments(?=[\s.$A-Z])', 'Item 1B - Unresolved Staff Comments', '10-K'),
+    (r'Item\s+1C\s*[\.:\-–—]?\s*Cybersecurity(?=[\s.$A-Z])', 'Item 1C - Cybersecurity', '10-K'),
+    (r'Item\s+2\s*[\.:\-–—]?\s*Properties(?=[\s.$A-Z])', 'Item 2 - Properties', '10-K'),
+    (r'Item\s+3\s*[\.:\-–—]?\s*Legal Proceedings(?=[\s.$A-Z])', 'Item 3 - Legal Proceedings', '10-K'),
+    (r'Item\s+4\s*[\.:\-–—]?\s*Mine Safety Disclosures(?=[\s.$A-Z])', 'Item 4 - Mine Safety Disclosures', 'both'),
     
     # Part II 10-K specific
-    (r'Item\s+5\s*[\.:\-–—]?\s*Market for Registrant\b', 'Item 5 - Market for Registrant', '10-K'),
-    (r'Item\s+6\s*[\.:\-–—]?\s*Reserved\b', 'Item 6 - Reserved', '10-K'),
-    (r'Item\s+7\s*[\.:\-–—]?\s*Management[\'\u2019]?s?\s*Discussion\b', 'Item 7 - MD&A', '10-K'),
-    (r'Item\s+7A\s*[\.:\-–—]?\s*Quantitative and Qualitative Disclosures\b', 'Item 7A - Market Risk', '10-K'),
-    (r'Item\s+8\s*[\.:\-–—]?\s*Financial Statements\b', 'Item 8 - Financial Statements', '10-K'),
-    (r'Item\s+9\s*[\.:\-–—]?\s*Changes in and Disagreements\b', 'Item 9 - Changes and Disagreements', '10-K'),
-    (r'Item\s+9A\s*[\.:\-–—]?\s*Controls and Procedures\b', 'Item 9A - Controls and Procedures', '10-K'),
-    (r'Item\s+9B\s*[\.:\-–—]?\s*Other Information\b', 'Item 9B - Other Information', '10-K'),
+    (r'Item\s+5\s*[\.:\-–—]?\s*Market for Registrant(?=[\s.$A-Z])', 'Item 5 - Market for Registrant', '10-K'),
+    (r'Item\s+6\s*[\.:\-–—]?\s*Reserved(?=[\s.$A-Z])', 'Item 6 - Reserved', '10-K'),
+    (r'Item\s+7\s*[\.:\-–—]?\s*Management[\'\u2019]?s?\s*Discussion(?=[\s.$A-Z])', 'Item 7 - MD&A', '10-K'),
+    (r'Item\s+7A\s*[\.:\-–—]?\s*Quantitative and Qualitative Disclosures(?=[\s.$A-Z])', 'Item 7A - Market Risk', '10-K'),
+    (r'Item\s+8\s*[\.:\-–—]?\s*Financial Statements(?=[\s.$A-Z])', 'Item 8 - Financial Statements', '10-K'),
+    (r'Item\s+9\s*[\.:\-–—]?\s*Changes in and Disagreements(?=[\s.$A-Z])', 'Item 9 - Changes and Disagreements', '10-K'),
+    (r'Item\s+9A\s*[\.:\-–—]?\s*Controls and Procedures(?=[\s.$A-Z])', 'Item 9A - Controls and Procedures', '10-K'),
+    (r'Item\s+9B\s*[\.:\-–—]?\s*Other Information(?=[\s.$A-Z])', 'Item 9B - Other Information', '10-K'),
     
     # Generic fallbacks (less specific, used when specific not matched)
     # These must come AFTER all specific patterns
@@ -131,6 +131,14 @@ def _find_section_headers(text: str, document_type: str) -> List[Tuple[int, str]
             context_before = text[max(0, pos - 100):pos]
             context_after = text[pos:pos + 200]
             
+            # Skip matches inside [TABLE]...[/TABLE] blocks (TOC entries)
+            # _clean_html wraps HTML tables in [TABLE]...[/TABLE] markers
+            table_start = text.rfind('[TABLE]', 0, pos)
+            if table_start != -1:
+                table_end = text.find('[/TABLE]', table_start)
+                if table_end == -1 or table_end > pos:
+                    continue
+            
             # Skip if it looks like a TOC entry
             toc_indicators = [
                 r'\.{4,}\s*\d',  # dots for page numbers followed by digits (...... 21)
@@ -144,7 +152,7 @@ def _find_section_headers(text: str, document_type: str) -> List[Tuple[int, str]
             if is_toc and pos < 2000:
                 continue
             
-# Skip if it looks like a textual reference (embedded in a sentence)
+            # Skip if it looks like a textual reference (embedded in a sentence)
             # Real headers typically start at line beginning or after newline
             # Textual references like "see Item 7..." or "as described in Item 1A" 
             # have preceding text on the same "line"
@@ -179,7 +187,8 @@ def _find_section_headers(text: str, document_type: str) -> List[Tuple[int, str]
             is_real_header = (
                 pos == 0 or 
                 context_before.strip() == '' or
-                context_before.endswith('\n')
+                context_before.endswith('\n') or
+                bool(re.search(r'\n\s*$', context_before))
             )
             
             # For generic fallbacks, be more strict - require header-like context

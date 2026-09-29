@@ -8,6 +8,7 @@ from google import genai
 
 from services.bge_query_service import bge_query_service, BGEQueryResponse
 from services.bge_rag_service import RetrievalResult
+from services.dynamic_research_service import research_and_ingest_company
 
 load_dotenv()
 
@@ -131,9 +132,11 @@ def answer_financial_question(
     
     Flow:
     1. Query BGE for relevant SEC chunks
-    2. If no evidence available, return clear response
-    3. If evidence exists, send to Gemini with grounded prompt
-    4. Return structured response with answer and evidence metadata
+    2. If company not available, trigger dynamic SEC research and ingestion
+    3. Retry BGE query after research
+    4. If no evidence available, return clear response
+    5. If evidence exists, send to Gemini with grounded prompt
+    6. Return structured response with answer and evidence metadata
     
     Args:
         symbol: Stock symbol (e.g., "AAPL", "MSFT")
@@ -143,23 +146,76 @@ def answer_financial_question(
     Returns:
         QAResponse with answer, evidence, and metadata
     """
-    # Step 1: Retrieve evidence from BGE
-    bge_response = bge_query_service.query(
-        symbol=symbol,
-        query=query,
-        top_k=top_k,
-    )
+    normalized_symbol = symbol.upper().strip() if symbol else ""
     
-    if not bge_response.available:
+    if not normalized_symbol:
         return QAResponse(
-            symbol=symbol.upper().strip() if symbol else "",
+            symbol="",
             query=query,
             answer="",
             evidence=[],
             evidence_count=0,
             available=False,
-            error=bge_response.error or "Company not available in BGE knowledge base",
+            error="Invalid or empty symbol",
         )
+    
+    if not query or not query.strip():
+        return QAResponse(
+            symbol=normalized_symbol,
+            query=query,
+            answer="",
+            evidence=[],
+            evidence_count=0,
+            available=False,
+            error="Query text is empty.",
+        )
+    
+    # Step 1: Try to retrieve evidence from BGE
+    bge_response = bge_query_service.query(
+        symbol=normalized_symbol,
+        query=query,
+        top_k=top_k,
+    )
+    
+    # If company not available, trigger dynamic research
+    if not bge_response.available:
+        # Attempt dynamic research to populate BGE knowledge base
+        research_result = research_and_ingest_company(
+            symbol=normalized_symbol,
+            filing_limit=3,
+            filing_types=["10-K", "10-Q"],
+        )
+        
+        # If research failed, return error
+        if research_result.errors:
+            return QAResponse(
+                symbol=normalized_symbol,
+                query=query,
+                answer="",
+                evidence=[],
+                evidence_count=0,
+                available=False,
+                error=f"Dynamic research failed: {'; '.join(research_result.errors)}",
+            )
+        
+        # Research succeeded - retry BGE query
+        bge_response = bge_query_service.query(
+            symbol=normalized_symbol,
+            query=query,
+            top_k=top_k,
+        )
+        
+        # If still not available after research, return error
+        if not bge_response.available:
+            return QAResponse(
+                symbol=normalized_symbol,
+                query=query,
+                answer="",
+                evidence=[],
+                evidence_count=0,
+                available=False,
+                error=bge_response.error or "Company not available after dynamic research",
+            )
     
     if bge_response.error:
         return QAResponse(

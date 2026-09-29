@@ -454,6 +454,131 @@ class TestDocumentProcessor(unittest.TestCase):
         self.assertEqual(sections[2], "Item 2 - MD&A")
         self.assertEqual(sections[3], "Item 2 - MD&A")
 
+    def test_toc_inside_table_block_not_detected(self):
+        """Test that Item references inside [TABLE]...[/TABLE] blocks don't become headers."""
+        text = """
+        [TABLE]
+        Page Part I Item 1. | Financial Statements | 1
+        Item 2. | Management's Discussion and Analysis of Financial Condition | 10
+        Item 3. | Quantitative and Qualitative Disclosures About Market Risk | 15
+        Item 4. | Controls and Procedures | 15
+        Item 1A. | Risk Factors | 20
+        Item 5. | Other Information | 25
+        Item 6. | Exhibits | 25
+        [/TABLE]
+
+        PART I — FINANCIAL INFORMATION
+        Item 1. Financial Statements
+        Actual financial statement content here.
+        """
+        headers = _find_section_headers(text, "10-Q")
+        section_names = [h[1] for h in headers]
+        # Only the real header should be found (Item 1 - Financial Statements)
+        # TOC entries inside [TABLE] should be filtered
+        self.assertIn("Item 1 - Financial Statements", section_names)
+        # Generic TOC entries should NOT appear
+        generic_count = sum(1 for n in section_names if n in ["Item 1", "Item 2", "Item 3", "Item 4", "Item 5", "Item 6"])
+        self.assertEqual(generic_count, 0)
+
+    def test_real_header_outside_toc_still_detected(self):
+        """Test that real section headers after TOC are still detected."""
+        text = """
+        [TABLE]
+        Item 1. | Financial Statements | 1
+        Item 2. | Management's Discussion | 10
+        [/TABLE]
+
+        PART I — FINANCIAL INFORMATION
+        Item 1. Financial Statements
+        Apple Inc. CONDENSED CONSOLIDATED BALANCE SHEETS
+        Actual financial content.
+
+        Item 2. Management's Discussion and Analysis of Financial Condition
+        MD&A content here.
+        """
+        headers = _find_section_headers(text, "10-Q")
+        section_names = [h[1] for h in headers]
+        # Both real headers should be detected
+        self.assertIn("Item 1 - Financial Statements", section_names)
+        self.assertIn("Item 2 - MD&A", section_names)
+
+    def test_financial_statements_followed_by_company_name(self):
+        """Test that 'Item 1. Financial StatementsApple Inc.' is detected correctly."""
+        # Real SEC formatting: company name follows title without separator
+        text = """
+        PART I — FINANCIAL INFORMATION
+        Item 1. Financial StatementsApple Inc.CONDENSED CONSOLIDATED BALANCE SHEETS
+        Actual financial content here.
+        """
+        headers = _find_section_headers(text, "10-Q")
+        section_names = [h[1] for h in headers]
+        self.assertIn("Item 1 - Financial Statements", section_names)
+
+    def test_mdna_followed_by_company_name_10q(self):
+        """Test 10-Q Item 2 MD&A followed by company name (SEC formatting)."""
+        text = """
+        Item 2. Management's Discussion and AnalysisTesla, Inc.
+        MD&A content here.
+        """
+        headers = _find_section_headers(text, "10-Q")
+        section_names = [h[1] for h in headers]
+        self.assertIn("Item 2 - MD&A", section_names)
+
+    def test_market_risk_followed_by_company_name(self):
+        """Test Item 3 Market Risk followed by company name."""
+        text = """
+        Item 3. Quantitative and Qualitative DisclosuresNVDA Corporation
+        Market risk content here.
+        """
+        headers = _find_section_headers(text, "10-Q")
+        section_names = [h[1] for h in headers]
+        self.assertIn("Item 3 - Market Risk", section_names)
+
+    def test_controls_procedures_followed_by_company_name(self):
+        """Test Item 4 Controls and Procedures followed by company name."""
+        text = """
+        Item 4. Controls and ProceduresApple Inc.
+        Controls content here.
+        """
+        headers = _find_section_headers(text, "10-Q")
+        section_names = [h[1] for h in headers]
+        self.assertIn("Item 4 - Controls and Procedures", section_names)
+
+    def test_risk_factors_followed_by_company_name(self):
+        """Test Item 1A Risk Factors followed by company name."""
+        text = """
+        Item 1A. Risk FactorsTesla, Inc.
+        Risk factors content here.
+        """
+        headers = _find_section_headers(text, "10-Q")
+        section_names = [h[1] for h in headers]
+        self.assertIn("Item 1A - Risk Factors", section_names)
+        # Should NOT appear as generic Item 1A
+        self.assertNotIn("Item 1A", section_names)
+
+    def test_toc_with_pipes_and_page_numbers_filtered(self):
+        """Test pipe-delimited TOC with page numbers is filtered."""
+        text = """
+        TABLE OF CONTENTS
+
+        [TABLE]
+        Page
+        Item 1. | Business | 1
+        Item 2. | Risk Factors | 5
+        Item 3. | Legal Proceedings | 10
+        [/TABLE]
+
+        Item 1. Business
+        Real business content here.
+        """
+        headers = _find_section_headers(text, "10-K")
+        section_names = [h[1] for h in headers]
+        # The real Item 1 - Business should be detected (but it might not match
+        # if it's a 10-Q pattern - let's check what we get)
+        # TOC entries should NOT appear as generic Item 1/2/3
+        generic_items = [n for n in section_names if n in ["Item 1", "Item 2", "Item 3", "Item 4", "Item 5", "Item 6"]]
+        self.assertEqual(generic_items, [])
+
     def test_table_conversion(self):
         """Test that HTML tables are converted to structured text."""
         html = """<html><body><table><tr><th>Revenue</th><th>2024</th></tr><tr><td>Product</td><td>$100B</td></tr></table></body></html>"""

@@ -63,6 +63,24 @@ Company Information:
 Financial Metrics:
 {research_package["financial_metrics"]}
 
+Financial Metric Period Basis:
+- revenue, net_income, and profit_margin are trailing twelve month (TTM) values.
+- eps and pe_ratio are trailing (TTM) values.
+- revenue_growth and return_on_equity are provider-defined. The exact comparison period
+  for revenue_growth and the exact denominator for return_on_equity may not be fully
+  specified by the data source. Do not claim more certainty about these periods than the
+  source provides.
+- debt_to_equity reflects the most recently reported balance sheet data. Its exact
+  reporting period may be unspecified.
+- current_price and market_cap are live market values, not accounting-period figures.
+- SEC 10-Q evidence may contain quarter-only figures or year-to-date / nine-month
+  cumulative figures. These are not directly comparable with TTM metrics as if the
+  periods matched.
+- If periods differ, or the exact period cannot be established from the provided
+  information, explicitly disclose the mismatch or uncertainty. Do not reconcile the
+  numbers and do not claim they agree.
+- Never invent a period, a date, or a value.
+
 Recent News:
 {research_package["recent_news"]}
 {rag_evidence_text}
@@ -130,6 +148,9 @@ Risk Analysis Requirements:
 
 General Instructions:
 - Base all analysis strictly on the values provided above. If a metric is missing or None, do not invent it.
+- Never invent a reporting period, a date, or a value. If the period for a figure is not
+  stated in the provided information, say that the period is unspecified rather than
+  assuming one.
 - Distinguish between facts directly provided in the research package and reasonable interpretations based on that information. Do not present speculation as confirmed fact.
 - Risks and opportunities must be supported by the provided financial data, news, or SEC filing evidence.
 - Do NOT provide investment recommendations. Do not use phrases such as buy signal, sell signal, buy recommendation, sell recommendation, hold recommendation, good time to buy, good entry point, investors should buy, investors should sell, or price target.

@@ -10,16 +10,26 @@ from services.company_availability_service import CompanyAvailabilityService, Co
 
 
 class TestCompanyAvailabilityService:
+    # All test symbols used across this suite. Cleaning every one of them
+    # (not just the ones previously cleaned) before and after each test
+    # guarantees no test vectors are left behind in the isolated test
+    # collection.
+    _TEST_SYMBOLS = ["TESTAVAIL", "TESTAVAIL2", "TESTNORM", "TEST", "TESTA", "TESTB", "TESTLIST", "TESTDELETE", "TESTCOUNT"]
+
     @pytest.fixture(autouse=True)
     def setup(self):
-        self.service = CompanyAvailabilityService()
-        self.bge_service = BGERAGService()
+        # Use an isolated test collection so test vectors never touch the
+        # production financial_documents_bge collection.
+        self.bge_service = BGERAGService(collection_name="financial_documents_bge_test")
+        # Inject the same isolated service so availability checks read from the
+        # collection the fixture writes into, not the production singleton.
+        self.service = CompanyAvailabilityService(self.bge_service)
         # Clean up test companies before each test
-        for sym in ["TESTAVAIL", "TESTAVAIL2", "TESTNORM"]:
+        for sym in self._TEST_SYMBOLS:
             self.bge_service.delete_company_documents(sym)
         yield
         # Clean up after
-        for sym in ["TESTAVAIL", "TESTAVAIL2", "TESTNORM"]:
+        for sym in self._TEST_SYMBOLS:
             self.bge_service.delete_company_documents(sym)
 
     def test_existing_company_available(self):

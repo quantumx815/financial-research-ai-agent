@@ -15,8 +15,12 @@ class CompanyAvailability:
 
 
 class CompanyAvailabilityService:
-    def __init__(self):
-        self._service = bge_rag_service
+    def __init__(self, bge_service=None):
+        # Preserve production default (module-level singleton) so callers that
+        # don't pass a service keep reading the real production collection.
+        # Tests may inject an isolated BGERAGService so availability checks read
+        # from the same collection the test fixture writes into.
+        self._service = bge_service if bge_service is not None else bge_rag_service
 
     @staticmethod
     def normalize_symbol(symbol: str) -> str:

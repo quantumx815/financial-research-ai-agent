@@ -1,9 +1,13 @@
+import logging
+
 from fastapi import APIRouter, HTTPException
 
 from services.financial_data import get_company_data
 from services.news_service import get_company_news
 from services.gemini_service import generate_financial_analysis
 from services.rag_service import rag_service
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -82,8 +86,9 @@ def get_company_analysis(symbol: str):
 
         return response
 
-    except Exception:
+    except Exception as exc:
+        logger.exception("Failed to generate financial analysis for %s", symbol)
         raise HTTPException(
             status_code=500,
             detail="Unable to generate financial analysis"
-        )
+        ) from exc

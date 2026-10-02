@@ -57,15 +57,22 @@ class RetrievalResponse:
 
 
 class BGERAGService:
-    def __init__(self):
-        os.makedirs(_BGE_CHROMA_DIR, exist_ok=True)
+    def __init__(self, chroma_dir=None, collection_name=None):
+        # Preserve production defaults so the module-level singleton
+        # (bge_rag_service = BGERAGService()) keeps pointing at the real
+        # production collection. Tests may override both to isolate
+        # test vectors from the production BGE collection.
+        resolved_dir = chroma_dir if chroma_dir is not None else _BGE_CHROMA_DIR
+        resolved_name = collection_name if collection_name is not None else _BGE_COLLECTION_NAME
+
+        os.makedirs(resolved_dir, exist_ok=True)
 
         self._client = chromadb.PersistentClient(
-            path=_BGE_CHROMA_DIR,
+            path=resolved_dir,
             settings=Settings(anonymized_telemetry=False),
         )
         self._collection = self._client.get_or_create_collection(
-            name=_BGE_COLLECTION_NAME,
+            name=resolved_name,
             metadata={"hnsw:space": "cosine"},
         )
         self._model_info = get_bge_model_info()

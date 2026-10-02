@@ -49,18 +49,27 @@ class TestBGEEmbeddingService:
 
 
 class TestBGERAGService:
+    # All test symbols used across this suite. Cleaning every one of them
+    # (not just "TEST") before and after each test guarantees no test vectors
+    # are left behind in the isolated test collection.
+    _TEST_SYMBOLS = ["TEST", "TESTA", "TESTB", "TESTLIST", "TESTDELETE", "TESTCOUNT"]
+
     @pytest.fixture(autouse=True)
     def setup(self):
-        self.service = BGERAGService()
+        # Use an isolated test collection so test vectors never touch the
+        # production financial_documents_bge collection.
+        self.service = BGERAGService(collection_name="financial_documents_bge_test")
         # Clean up before each test
-        self.service.delete_company_documents("TEST")
+        for sym in self._TEST_SYMBOLS:
+            self.service.delete_company_documents(sym)
         yield
-        # Clean up after
-        self.service.delete_company_documents("TEST")
+        # Clean up after each test
+        for sym in self._TEST_SYMBOLS:
+            self.service.delete_company_documents(sym)
 
     def test_collection_exists(self):
         coll = self.service.get_collection()
-        assert coll.name == "financial_documents_bge"
+        assert coll.name == "financial_documents_bge_test"
         assert coll.metadata.get("hnsw:space") == "cosine"
 
     def test_model_info(self):
